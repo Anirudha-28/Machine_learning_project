@@ -1,124 +1,341 @@
-# DeliverIQ — Delivery Prediction App
+DeliverIQ — AI-Powered Delivery Prediction & Business Intelligence Platform
+A Brazilian e-commerce logistics platform that predicts delivery times with a trained ML model, answers customer questions through a tool-calling AI agent, and gives admins a business-intelligence assistant and dashboard — all running on local infrastructure with no per-query API cost.
 
-## Chat assistant now runs on Gemini (free tier), not Ollama
+---
 
-`llm.py`, `agent.py`, `admin_agent.py`, and `rag.py` were switched from a
-local Ollama model to Google's free Gemini API — this is what fixes the
-slow chatbot responses:
+Problem Statement
+Existing problems:
 
-- **Model:** `gemini-2.5-flash-lite` by default (fastest + highest free-tier
-  quota: 15 req/min, 1,000 req/day as of writing). Falls back automatically
-  to `gemini-2.5-flash` if flash-lite's quota is hit. Override with
-  `export GEMINI_MODEL=gemini-2.5-flash` if you want the slightly stronger
-  model and don't mind a bit more latency.
-- **Native function calling** replaced the old manual "reply with a JSON
-  object" ReAct loop. The old loop's biggest slowdown was retrying an
-  entire LLM round trip whenever the small local model wrote invalid JSON
-  or chatted instead of complying. Gemini returns a structured tool call
-  directly, so that retry cost is gone.
-- **Embeddings** (`rag.py`) moved from Ollama's `nomic-embed-text` to
-  Gemini's free `text-embedding-004` model — one less local service to run.
-  The keyword-search fallback (used if the embedding call fails or
-  `vector_store.pkl` hasn't been built) is unchanged.
+- Customers receive generic delivery estimates that ignore real operating conditions
 
-### Setup — all you need is one free API key
+- Support staff repeatedly answer the same delivery and policy questions manually
 
-1. Get a free key (no credit card) at **https://aistudio.google.com/apikey**
-2. Set it as an environment variable before running the app:
-   ```bash
-   export GEMINI_API_KEY=your-key-here
-   # Windows PowerShell:  $env:GEMINI_API_KEY="your-key-here"
-   ```
-3. Run the app as usual — `python app.py`. No `ollama serve`, no model pull,
-   nothing else to install (still just `pip install -r requirements.txt`).
-4. If you rebuild the RAG index (`python rag.py`), it now embeds via Gemini
-   too, so make sure `GEMINI_API_KEY` is set for that step as well.
+- Order status and delivery reasoning are not self-served — every query needs a human
 
-**Free tier limits to know:** flash-lite gives ~15 requests/minute and
-~1,000/day per Google account/project. A single chat turn now costs at most
-`MAX_STEPS` (3) requests instead of possibly 2x that under the old retry
-loop, so you get roughly 300+ real chat turns/day comfortably inside the
-free quota. If you ever see a "quota hit" error, it means both flash-lite
-and the flash fallback are rate-limited — wait a minute (per-minute limit)
-or the rest of the day (daily limit).
+- Business owners have no fast way to see revenue, top categories, or risk states
 
-## What was wrong before
+**Our solution** builds a delivery-logistics platform that:
 
-Your `.pkl` was trained on ~90 engineered columns (log-transforms, target-encoded
-category, one-hot dummies for 10 categorical fields, haversine distance, calendar
-flags) — but the UI was sending raw form values. Almost every one-hot column
-resolved to its dropped reference category and the target-encoding columns were
-missing, so the model always landed in the same narrow leaf region → stuck
-predicting 2-4 days regardless of input.
+- Predicts delivery days with a trained ML model using real operational data
 
-## What this app does differently
+- Answers customer questions through a tool-calling AI agent
 
-1. **`feature_engineering.py`** rebuilds the exact schema, confirmed by reading
-   the feature names embedded directly in your `.pkl` binary and cross-checking
-   every categorical column's unique values against the training CSV.
-2. **Operational fields the customer never enters** (traffic, weather, courier
-   assignment, warehouse state, road condition, fuel price) are **sampled from
-   real historical combinations** in the CSV — 40 scenarios per prediction —
-   instead of hard-coded to one default. This is what actually fixes the
-   "always 2-4 days" bug: a single fixed default keeps the model in one leaf;
-   sampling real historical variation lets it explore the full tree.
-3. **`app.py` reorders columns to `model.feature_names_`** at prediction time
-   as a safety net, so even if the reconstructed order differs from training,
-   the model still gets the right value in the right slot.
+- Gives admins a business-intelligence assistant + dashboard
 
-## Setup
+- Runs entirely on local infrastructure (Ollama) — no per-query API cost
 
-```bash
+---
+
+Tech Stack
+| Layer | Technology |
+
+|---|---|
+
+| Backend | Python, Flask |
+
+| Data / ML | Pandas, NumPy, CatBoost, LightGBM |
+
+| LLM Runtime | Ollama (Qwen2.5:3B) |
+
+| Embeddings | Nomic-Embed-Text |
+
+| Database | MySQL |
+
+| Frontend | HTML, CSS, JavaScript |
+
+---
+
+Dataset
+- **Source:** Real Brazilian Olist e-commerce fields (orders, customers, sellers, products, payments) combined with operational fields — courier partner & vehicle type, warehouse location/capacity/processing hours, traffic index, weather condition, rainfall, road condition, fuel price index, seller/estimated dispatch time, holiday/festival flags.
+
+- **Records:** 200,600
+
+- **Raw columns:** 42
+
+- **Engineered features:** 93
+
+- **Prediction target:** delivery\_days
+
+---
+
+Feature Engineering Pipeline
+- Haversine distance between seller and customer coordinates
+
+- Target encoding — product category → mean historical delivery\_days
+
+- One-hot encoding across 10 categorical fields (priority, shipping mode, weather, road condition, warehouse, courier partner, vehicle type, state, etc.)
+
+- Calibrated formula per shipping mode: estimated\_delivery\_days = slope × distance\_km + intercept
+
+- Operational fields (traffic, weather, courier, warehouse) sampled from 40 real historical scenarios per prediction, so the model explores its full decision tree instead of one fixed leaf
+
+- app.py reorders columns to model.feature\_names\_ at inference time as a safety net against schema drift
+
+---
+
+Model Performance
+| Model | MAE | RMSE | R² Score |
+
+|---|---|---|---|
+
+| **CatBoost (best)** | **1.2549** | **1.5706** | **0.8384** |
+
+| LightGBM | 1.3257 | 1.6645 | 0.8183 |
+
+| Linear Regression | 1.4062 | 1.7834 | 0.7914 |
+
+Why CatBoost:
+
+- Handles categorical features natively — no manual target/one-hot leakage risk
+
+- Captures non-linear relationships between distance, traffic, weather, and delivery time
+
+- Ordered boosting reduces overfitting versus standard gradient boosting
+
+- Robust to missing values in operational fields
+
+- Exposes feature\_names\_, enabling safe column alignment at inference
+
+Operational feature impact: Removing operational fields (traffic, rainfall, fuel price, warehouse processing, seller dispatch, rural route, courier breakdown) drops CatBoost to MAE 1.447 / RMSE 1.822 / R² 0.782 — confirming these features drive real predictive lift, not noise.
+
+Top drivers of delivery time: distance (Haversine), weather & rainfall, traffic index, warehouse processing, courier & vehicle type, road condition.
+
+---
+
+Architecture
+1. Prediction Flow (Flask + ML)
+
+1. User logs in (session-based auth; role = customer or admin)
+
+2. User selects category, state, city, shipping mode, and priority on the product page
+
+3. FeatureBuilder rebuilds the 93-column training schema (distance, encodings, operational sampling)
+
+4. Columns are reordered to model.feature\_names\_ as a safety net
+
+5. The CatBoost model predicts delivery\_days, returning mean/min/max
+
+6. The prediction is logged to MySQL (predictions table in schema.sql)
+
+7. The result is shown on the UI / dashboard
+
+2. Customer AI Assistant — Tool-Calling Agent
+A manual ReAct loop (Thought → Action → Observation) in agent.py — max 3 steps, zero extra dependencies, works with any Ollama model.
+
+Tool registry:
+
+- predict\_delivery — runs the ML model for a new delivery estimate
+
+- get\_order\_by\_id — looks up a specific past order from MySQL
+
+- get\_my\_recent\_orders — fetches the customer's most recent orders
+
+- search\_knowledge — retrieves policy/FAQ answers via RAG
+
+The tool's observation is fed back to Ollama (Qwen2.5:3B), which either calls another tool or returns a final\_answer — a warm, 2–5 sentence reply grounded only in real tool output, never invented.
+
+3. Retrieval-Augmented Generation (RAG)
+- *Knowledge base:** courier policy, shipping policy, FAQs, delivery rules (plain .txt files in knowledge\_base/)
+
+- Chunking: 120-word overlapping chunks, 20-word overlap
+
+- Embedding: Ollama — nomic-embed-text
+
+- Storage: local embedding store (vector\_store.pkl) — no external vector DB
+
+- Retrieval: cosine similarity search, top-k most relevant chunks
+
+- Generation: Qwen2.5 LLM (Ollama) answers using retrieved context — fully local, no internet
+
+- Reliability fallback: if the vector store isn't built yet or Ollama is unreachable, the app automatically falls back to keyword search over the same knowledge-base files — the chatbot never goes silent
+
+4. Admin Intelligence — Dashboard & Agent
+Admin dashboard(from dataset + MySQL):
+
+- Revenue summary — total revenue, avg order value, freight cost %
+
+- Top categories by revenue & average delivery days
+
+- Top couriers, top cities, top sellers
+
+- State-wise revenue & delivery breakdown
+
+- Shipping-mode performance (economy/standard/express/same-day)
+
+- Fraud/risk states — highest average delivery days (bottleneck signal)
+
+Admin agent flow (admin\_agent.py):
+
+- Reachable only behind @admin\_required
+
+- ReAct loop (max 4 steps), separate tool registry — never exposed to customers
+
+- admin\_tools.py pulls live numbers from CSV/MySQL — revenue, categories, states, shipping, risk
+
+- Qwen2.5 LLM produces a professional, number-grounded final answer
+
+### System Overview
+
+
+Frontend — HTML / CSS / JS  (index, product, dashboard, chatbot, admin\_chatbot)
+
+&#x20;       │
+
+Flask Application (app.py) — routes, sessions, role-based access
+
+&#x20;       │
+
+&#x20;  ┌────┴────┬─────────────┬──────────────┐
+
+ML Prediction  AI Agents      RAG          FeatureBuilder
+
+CatBoost(.pkl) agent.py       knowledge\_base/\*.txt
+
+93 features    admin\_agent.py nomic-embed-text
+
+&#x20;              ReAct loop     vector\_store.pkl
+
+&#x20;       │
+
+MySQL (predictions log)  ·  Ollama Runtime — Qwen2.5:3B (fully local, no API cost)
+
+---
+
+## Authentication & Role-Based Access
+
+- Session-based Flask login — @login\_required and @admin\_required decorators guard routes
+
+- Two roles: **customer** and **admin**, each redirected to a different home page after login
+
+- Every prediction is logged to MySQL (predictions table) with state, city, category, and predicted days
+
+| Role | Access |
+
+|---|---|
+
+| Customer | Own predictions & order history, delivery prediction tool, customer chatbot (policy + order Q&A) |
+
+| Admin | Full revenue & courier/seller analytics, state & shipping-mode performance, admin chatbot for business questions |
+
+---
+
+## Project Structure
+
+
+homehaven\_v3/
+
+├── app.py                      # Flask app — routes, auth, sessions
+
+├── agent.py                    # Customer AI agent (ReAct loop)
+
+├── admin\_agent.py               # Admin AI agent (ReAct loop)
+
+├── tools.py                     # Customer-facing tools (prediction, orders, RAG)
+
+├── admin\_tools.py                # Admin-facing analytics tools
+
+├── feature\_engineering.py       # FeatureBuilder pipeline (93 engineered features)
+
+├── rag.py                       # RAG: chunking, embeddings, vector store
+
+├── llm.py                       # Ollama LLM client
+
+├── test\_model.py                 # Local model sanity check script
+
+├── schema.sql                    # MySQL schema (predictions table)
+
+├── catboost\_baseline\_model.pkl   # Trained CatBoost model
+
+├── logistics\_data.csv            # Training / analytics dataset
+
+├── requirements.txt
+
+├── .env.example                   # Environment variable template
+
+├── knowledge\_base/                # RAG source docs (policies, FAQs)
+
+├── static/                        # CSS \& JS
+
+└── templates/                     # Jinja2 HTML templates
+
+---
+
+## Setup & Installation
+
+### Prerequisites
+
+- Python 3.9+
+
+- MySQL Server
+
+- [Ollama](https://ollama.com) installed and running locally
+
+1. Clone the repository
+
+git clone https://github.com/maneprathamesh/DBDA---Machine-Learning-Project.git
+
+cd DBDA---Machine-Learning-Project/homehaven\_v3
+2. Install Python dependencies
+
 pip install -r requirements.txt
+3. Pull the required Ollama models
 
-# Optional: set up MySQL logging (app works fine without this — logging just
-# gets skipped and printed to console instead)
+ollama pull qwen2.5:3b
+
+ollama pull nomic-embed-text
+4. Set up the database
+
 mysql -u root -p < schema.sql
-```
+5. Configure environment variables
 
-Set DB credentials via environment variables if not using defaults:
-```bash
-export DB_HOST=localhost
-export DB_USER=root
-export DB_PASSWORD=yourpassword
-export DB_NAME=delivery_prediction_db
-```
+Copy .env.example to .env and fill in real values:
 
-## Test the model BEFORE running the full app
+cp .env.example .env
 
-```bash
-python test_model.py
-```
+SECRET\_KEY=<a random secret string>
 
-This prints 10 predictions across different products/states/priorities and
-their spread. You should see meaningfully different numbers (not clustered
-in a 2-day window). If it's still clustered, the printout tells you which
-category the model landed on so you can debug from there.
+ADMIN\_PASSWORD=<your admin password>
 
-## Run the app
+CUSTOMER\_PASSWORD=<your customer password>
 
-```bash
+DB\_HOST=localhost
+
+DB\_USER=root
+
+DB\_PASSWORD=<your MySQL password>
+
+DB\_NAME=delivery\_prediction\_db
+
+6. Run the app
+
+bash
+
 python app.py
-```
 
-Visit `http://localhost:5000`
+The app runs at http://localhost:5000.
 
-## Structure
+---
 
-```
-app.py                  Flask routes: home, product, predict, dashboard, chat stub
-feature_engineering.py  Rebuilds the model's exact training schema
-templates/               HTML pages
-static/                  CSS + JS (chat widget)
-schema.sql               MySQL table for prediction) logging
-test_model.py             Standalone sanity check script
-requirements.txt
-```
+Results
+- Best model: **CatBoost** — R² 0.8384, MAE 1.25 days, RMSE 1.57 days
 
-## Still to do
+- Operational features confirmed to drive real accuracy gains (R² drops to 0.782 without them)
 
-- Wire the `/chat` endpoint to an actual LLM + RAG pipeline (currently a stub
-  that echoes the message back)
-- Add authentication if this needs to be multi-user
-- Consider caching `FeatureBuilder` lookups to disk so app startup is instant
-  on restart (currently rebuilt from the CSV every time the app starts)
+- Working tool-calling agents for both customers and admins
+
+- Local RAG chatbot answering policy/delivery questions — no internet dependency
+
+- Role-based dashboard separating customer and admin capabilities
+
+- Every prediction and chat interaction is grounded in real tool output — no hallucinated numbers
+
+Future Scope
+- Live Weather & Google Maps API in place of historical sampling
+
+- Real-time courier GPS tracking
+
+- Swap the manual ReAct loop for native tool-calling (qwen2.5:7b / llama3.1)
+
+- Multi-language chatbot support
+
+- Cloud deployment (AWS / Azure) with authentication hardening
