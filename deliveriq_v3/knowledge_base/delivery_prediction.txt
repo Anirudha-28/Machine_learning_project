@@ -1,0 +1,31 @@
+How DeliverIQ Predicts Delivery Time
+
+DeliverIQ uses a CatBoost machine learning model trained on over 200,000
+past orders to predict delivery_days for a new order. The prediction is not
+a single fixed number — the app runs multiple simulated samples and returns
+a mean, minimum, and maximum estimate to reflect real-world variability.
+
+The most important factors driving the prediction, in order of importance:
+1. Route distance (km) between customer and seller — by far the strongest
+   factor, based on straight-line (haversine) distance between their
+   locations.
+2. Express delivery flag — whether the customer selected express shipping.
+3. Same-state flag — whether the customer and seller are in the same
+   Brazilian state; cross-state shipments generally take longer due to
+   inter-state logistics handoffs.
+4. Seller's average dispatch time — some sellers historically take longer
+   to hand off packages to couriers than others.
+5. Estimated delivery days — the platform's own initial estimate at
+   checkout, which itself carries information about expected shipping
+   difficulty.
+6. Road condition — routes marked as "poor" or "damaged" add measurable
+   delivery time compared to "good" or "excellent" roads.
+7. Traffic index — a 1-10 score representing route congestion; higher
+   values are associated with modestly longer delivery times.
+
+Smaller factors include weather, warehouse processing hours, holiday and
+festival flags, and courier vehicle breakdown incidents.
+
+Product category, price, and physical product weight/dimensions have only a
+small effect on delivery time — they matter more for fragility/handling than
+for shipping speed.

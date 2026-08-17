@@ -1,0 +1,25 @@
+DeliverIQ Product Categories
+
+DeliverIQ offers 71 product categories, sourced from the underlying Olist
+e-commerce dataset. Categories range from everyday goods to specialty items,
+including: agro industry and commerce, air conditioning, art, arts and
+craftmanship, audio, auto, baby, bed bath table, books (general interest,
+imported, technical), CDs/DVDs/musicals, christmas supplies, cine photo,
+computers, computers accessories, consoles games, construction tools
+(construction, lights, safety), cool stuff, costruction tools (garden,
+tools), diapers and hygiene, drinks, dvds blu ray, electronics, fashion
+(female clothing, bags accessories, childrens clothes, male clothing, shoes,
+sport, underwear beach), fixed telephony, flowers, food, food drink,
+furniture (bedroom, decor, living room, mattress and upholstery), garden
+tools, health beauty, home appliances, home comfort, home construction,
+housewares, industry commerce and business, kitchen dining laundry garden
+furniture, la cuisine, luggage accessories, market place, music, musical
+instruments, office furniture, party supplies, perfumery, pet shop, security
+and services, signaling and security, small appliances (including home oven
+and coffee), sports leisure, stationery, tablets printing image, telephony,
+toys, and watches gifts.
+
+Pricing: each category has an average product price and freight (shipping)
+cost, based on real order history in the dataset. Product category has only
+a small effect on delivery time itself — distance, traffic, and shipping
+mode matter far more than what type of product is being shipped.

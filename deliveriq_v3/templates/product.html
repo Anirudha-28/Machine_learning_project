@@ -1,0 +1,254 @@
+{% extends "base.html" %}
+{% block title %}{{ product.product_category_name_english.replace('_',' ').title() }} — DeliverIQ{% endblock %}
+{% block content %}
+
+<div class="breadcrumb">
+  <a href="{{ url_for('home') }}">Home</a>
+  <span>›</span>
+  <a href="{{ url_for('home') }}#explore">Products</a>
+  <span>›</span>
+  <span>{{ product.product_category_name_english.replace('_',' ').title() }}</span>
+</div>
+
+<section class="product-detail">
+
+  <!-- LEFT: product info -->
+  <div class="product-detail-info">
+    <div class="pdi-badge">📦 Product Category</div>
+    <h1>{{ product.product_category_name_english.replace('_', ' ').title() }}</h1>
+
+    <div class="pdi-stats">
+      <div class="pdi-stat">
+        <span class="pdi-stat-icon">⚖️</span>
+        <div>
+          <div class="pdi-stat-val">{{ (product.product_weight_g / 1000) | round(2) }} kg</div>
+          <div class="pdi-stat-label">Weight</div>
+        </div>
+      </div>
+      <div class="pdi-stat">
+        <span class="pdi-stat-icon">📍</span>
+        <div>
+          <div class="pdi-stat-val">{{ product.seller_city }}, {{ product.seller_state }}</div>
+          <div class="pdi-stat-label">Ships From</div>
+        </div>
+      </div>
+      <div class="pdi-stat">
+        <span class="pdi-stat-icon">💰</span>
+        <div>
+          <div class="pdi-stat-val">R$ {{ product.payment_value | round(2) }}</div>
+          <div class="pdi-stat-label">Avg. Price</div>
+        </div>
+      </div>
+      <div class="pdi-stat">
+        <span class="pdi-stat-icon">📦</span>
+        <div>
+          <div class="pdi-stat-val">R$ {{ product.freight_value | round(2) }}</div>
+          <div class="pdi-stat-label">Avg. Freight</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="shipping-modes-info">
+      <div class="smi-title">🚚 Available Shipping Modes</div>
+      <div class="smi-grid">
+        <div class="smi-card" onclick="setMode('express')">
+          <div class="smi-icon">🚀</div>
+          <div class="smi-name">Express</div>
+          <div class="smi-note">2–5 days</div>
+        </div>
+        <div class="smi-card" onclick="setMode('standard')">
+          <div class="smi-icon">📦</div>
+          <div class="smi-name">Standard</div>
+          <div class="smi-note">5–10 days</div>
+        </div>
+        <div class="smi-card" onclick="setMode('economy')">
+          <div class="smi-icon">💸</div>
+          <div class="smi-name">Economy</div>
+          <div class="smi-note">Best price</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: predict card -->
+  <div class="predict-card">
+    <div class="pc-header">
+      <span class="pc-header-icon">🤖</span>
+      <div>
+        <div class="pc-header-title">Predict Delivery Time</div>
+        <div class="pc-header-sub">Powered by CatBoost ML</div>
+      </div>
+    </div>
+
+    <form method="POST" action="{{ url_for('predict') }}" id="predict-form">
+      <input type="hidden" name="category" value="{{ product.product_category_name_english }}">
+
+      <div class="form-group">
+        <label for="customer_state">📍 Your State</label>
+        <select name="customer_state" id="customer_state" required onchange="loadCities(this.value)">
+          <option value="">— Select state —</option>
+          {% for s in states %}
+          <option value="{{ s }}" {% if selected_state == s %}selected{% endif %}>{{ s }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="customer_city">🏙️ Your City</label>
+        <select name="customer_city" id="customer_city">
+          <option value="">— Select state first —</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="shipping_mode">🚚 Shipping Mode</label>
+        <select name="shipping_mode" id="shipping_mode">
+          {% for mode in shipping_modes if mode != 'same_day' %}
+          <option value="{{ mode }}" {% if selected_shipping == mode %}selected{% endif %}>
+            {% if mode == 'express' %}🚀 Express{% elif mode == 'standard' %}📦 Standard{% else %}💸 Economy{% endif %}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="order_priority">⭐ Order Priority</label>
+        <select name="order_priority" id="order_priority">
+          {% for p in priorities %}
+          <option value="{{ p }}" {% if selected_priority == p %}selected{% endif %}>
+            {% if p == 'urgent' %}🔴 Urgent{% elif p == 'high' %}🟠 High{% elif p == 'medium' %}🟡 Medium{% else %}🟢 Low{% endif %}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <button type="submit" class="predict-btn" id="predict-btn">
+        <span id="btn-text">🔮 Predict Delivery Days</span>
+        <span id="btn-loading" class="hidden">⏳ Predicting...</span>
+      </button>
+    </form>
+
+    <!-- RESULT -->
+    {% if result %}
+      {% if result.predicted_days_mean <= 1.5 and result.shipping_mode == 'same_day' %}
+      <!-- Same day not possible -->
+      <div class="result-box result-warning">
+        <div class="result-warning-icon">⚠️</div>
+        <div class="result-warning-title">Same Day Not Available</div>
+        <div class="result-warning-msg">
+          Same day delivery is not possible for your location
+          (<strong>{{ selected_state }}</strong>). The distance from the seller
+          is too large for same-day delivery.
+        </div>
+        <div class="result-warning-suggestion">
+          💡 Try <strong>Express</strong> shipping for the fastest available option.
+        </div>
+      </div>
+      {% elif result.predicted_days_mean > 1.0 and result.shipping_mode == 'same_day' %}
+      <!-- Same day selected but > 1 day predicted -->
+      <div class="result-box result-warning">
+        <div class="result-warning-icon">⚠️</div>
+        <div class="result-warning-title">Same Day Not Possible for Your Location</div>
+        <div class="result-warning-msg">
+          Our model predicts <strong>{{ result.predicted_days_mean }} days</strong> for
+          same day delivery to <strong>{{ selected_state }}</strong> — that exceeds
+          the same-day threshold. The distance from the seller is too large.
+        </div>
+        <div class="result-warning-suggestion">
+          💡 Switch to <strong>Express</strong> for a realistic fast delivery estimate.
+        </div>
+      </div>
+      {% else %}
+      <!-- Normal result -->
+      <div class="result-box result-success">
+        <div class="result-header">
+          <span class="result-check">✅</span>
+          <span class="result-label">Estimated Delivery</span>
+        </div>
+        <div class="result-main">
+          {{ result.predicted_days_mean }}
+          <span class="result-unit">days</span>
+        </div>
+        <div class="result-range-row">
+          <div class="result-range-item">
+            <div class="rri-val rri-best">{{ result.predicted_days_min }}</div>
+            <div class="rri-label">Best Case</div>
+          </div>
+          <div class="result-range-bar">
+            <div class="rrb-fill" style="left:0%;width:100%"></div>
+            <div class="rrb-dot"></div>
+          </div>
+          <div class="result-range-item">
+            <div class="rri-val rri-worst">{{ result.predicted_days_max }}</div>
+            <div class="rri-label">Worst Case</div>
+          </div>
+        </div>
+        <div class="result-tags">
+          <span class="rtag">{{ result.shipping_mode.replace('_',' ').title() }}</span>
+          <span class="rtag">{{ result.order_priority.title() }} Priority</span>
+          <span class="rtag">{{ result.n_samples }} scenarios</span>
+        </div>
+        <div class="result-note">
+          📊 Prediction based on {{ result.n_samples }} simulated logistics scenarios
+          using weather, traffic, warehouse, and courier variability.
+        </div>
+        {% if result.prediction_id %}
+        <div class="result-note">
+          🔖 Your order reference: <strong>#{{ result.prediction_id }}</strong> —
+          ask the chatbot about this ID any time to look it up.
+        </div>
+        {% endif %}
+      </div>
+      {% endif %}
+    {% endif %}
+  </div>
+</section>
+
+<script>
+function setMode(mode) {
+  document.getElementById('shipping_mode').value = mode;
+  document.querySelectorAll('.smi-card').forEach(c => c.classList.remove('smi-active'));
+  event.currentTarget.classList.add('smi-active');
+}
+document.getElementById('predict-form').addEventListener('submit', function() {
+  document.getElementById('btn-text').classList.add('hidden');
+  document.getElementById('btn-loading').classList.remove('hidden');
+  document.getElementById('predict-btn').disabled = true;
+});
+
+// ── Dynamic city dropdown, backed by real dataset lat/lng per city ──
+async function loadCities(state, preselect) {
+  const citySelect = document.getElementById('customer_city');
+  if (!state) {
+    citySelect.innerHTML = '<option value="">— Select state first —</option>';
+    return;
+  }
+  citySelect.innerHTML = '<option value="">Loading cities...</option>';
+  citySelect.disabled = true;
+  try {
+    const res = await fetch(`/cities/${state}`);
+    const cities = await res.json();
+    citySelect.innerHTML = '<option value="">— Select city —</option>' +
+      cities.map(c => `<option value="${c}">${c}</option>`).join('');
+    if (preselect && cities.includes(preselect)) {
+      citySelect.value = preselect;
+    }
+  } catch (err) {
+    citySelect.innerHTML = '<option value="">Could not load cities</option>';
+  } finally {
+    citySelect.disabled = false;
+  }
+}
+
+// On page load: if a state is already selected (e.g. after predicting),
+// populate its cities and preselect the one actually used.
+document.addEventListener('DOMContentLoaded', () => {
+  const stateSelect = document.getElementById('customer_state');
+  const preselectedState = stateSelect.value;
+  const preselectedCity = "{{ selected_city or '' }}";
+  if (preselectedState) {
+    loadCities(preselectedState, preselectedCity);
+  }
+});
+</script>
+{% endblock %}

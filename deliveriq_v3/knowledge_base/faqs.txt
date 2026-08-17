@@ -1,0 +1,34 @@
+DeliverIQ Shipping Policy & FAQs
+
+EXPRESS SHIPPING POLICY
+Express shipping means your order is prioritised and dispatched within the same business day. Delivery typically takes 2 to 5 days depending on your state. For nearby states like SP, RJ, MG, and PR, express orders often arrive in 2 to 3 days. For remote states like AM, PA, AC, RO, and RR, express can take up to 6 to 8 days due to logistics infrastructure. Express shipping costs more than standard but less than same-day.
+
+SAME DAY DELIVERY POLICY
+Same-day delivery is only available for customers located in the same state or city as the seller. If your location is far from the seller's warehouse, same-day is not possible and the system will automatically alert you. Same-day orders must be placed before 11 AM local time to qualify. Same-day is the most expensive shipping mode.
+
+STANDARD SHIPPING POLICY
+Standard shipping is the default option. It takes 5 to 10 days for most Brazilian states. For very remote northern states it may take up to 12 to 15 days. Standard is the most affordable option.
+
+ECONOMY SHIPPING POLICY
+Economy shipping is the cheapest option. It takes 8 to 15 days on average. It is recommended for non-urgent, heavy, or bulky items where cost savings matter more than speed.
+
+URGENT ORDER PRIORITY
+When you select Urgent priority with any shipping mode, your order is moved to the front of the warehouse queue and dispatched first. This can reduce warehouse processing time by 1 to 2 days compared to low or medium priority.
+
+HOW DELIVERY TIME IS PREDICTED
+Our delivery time is predicted by a CatBoost machine learning model trained on over 200,000 real Brazilian e-commerce orders. The model considers: your state and city, the product category and weight, the shipping mode you selected, your order priority, current weather conditions, traffic index, warehouse capacity, courier vehicle type, fuel price index, road conditions, and whether there are holidays or festivals.
+
+WHY DOES MY DELIVERY TAKE LONGER THAN EXPECTED
+Delivery can take longer due to: remote location far from the seller, bad weather (heavy rain or storm), poor road conditions, courier vehicle breakdown, high festival season demand (June and December), public holidays, or warehouse capacity being at maximum.
+
+ORDER TRACKING
+Once your order is placed, you receive an order reference number (like #12 or #45). You can ask the assistant "give me details for order #12" and it will show you the product, your location, the predicted delivery days, and when the order was placed.
+
+HOW TO CHECK MY ORDER
+Simply type your order reference number in the chat, for example: "order #12", "my order number 5", or "show me order reference #20". The assistant will fetch the full details from the database immediately.
+
+PRODUCT CATEGORIES WE DELIVER
+We deliver across 71 product categories including: electronics, furniture, bed bath table, housewares, sports leisure, toys, health beauty, garden tools, fashion, computers, telephony, watches gifts, books, musical instruments, food drink, baby products, auto parts, construction tools, and many more.
+
+BRAZILIAN STATES WE DELIVER TO
+We deliver to all 27 Brazilian states: AC, AL, AM, AP, BA, CE, DF, ES, GO, MA, MG, MS, MT, PA, PB, PE, PI, PR, RJ, RN, RO, RR, RS, SC, SE, SP, TO.

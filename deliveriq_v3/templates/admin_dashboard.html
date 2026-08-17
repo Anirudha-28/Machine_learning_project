@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+{% block title %}Admin Dashboard — DeliverIQ{% endblock %}
+{% block content %}
+<section class="admin-dash-page">
+
+  <div class="admin-chat-title-row admin-dash-header">
+    <div class="admin-chat-icon">📊</div>
+    <div>
+      <h1>Business Dashboard</h1>
+      <p class="chatbot-sub">Revenue, top categories, couriers, cities, and sellers — live from MySQL.</p>
+    </div>
+    <a href="{{ url_for('logout') }}" class="logout-btn">Logout</a>
+  </div>
+
+  {% if db_error %}
+  <div class="dash-db-error">⚠️ Couldn't reach the database for courier/city/seller stats: {{ db_error }}</div>
+  {% endif %}
+
+  <div class="dash-stat-grid">
+    <div class="dash-stat-card dsc-violet">
+      <div class="dsc-icon">💰</div>
+      <div class="dsc-label">Total Revenue</div>
+      <div class="dsc-value">R$ {{ "{:,.2f}".format(revenue.total_revenue) }}</div>
+    </div>
+    <div class="dash-stat-card dsc-teal">
+      <div class="dsc-icon">📦</div>
+      <div class="dsc-label">Total Orders</div>
+      <div class="dsc-value">{{ "{:,}".format(revenue.total_orders) }}</div>
+    </div>
+    <div class="dash-stat-card dsc-coral">
+      <div class="dsc-icon">🧾</div>
+      <div class="dsc-label">Avg Order Value</div>
+      <div class="dsc-value">R$ {{ "{:,.2f}".format(revenue.avg_order_value) }}</div>
+    </div>
+    <div class="dash-stat-card dsc-amber">
+      <div class="dsc-icon">🚚</div>
+      <div class="dsc-label">Avg Freight Cost</div>
+      <div class="dsc-value">R$ {{ "{:,.2f}".format(revenue.avg_freight_cost) }}</div>
+    </div>
+  </div>
+
+  <div class="dash-chart-grid">
+    <div class="dash-chart-card dash-chart-wide">
+      <h2>Top 5 Categories by Revenue</h2>
+      <canvas id="topCategoriesChart"></canvas>
+    </div>
+    <div class="dash-chart-card">
+      <h2>Revenue Share</h2>
+      <canvas id="shareChart"></canvas>
+    </div>
+  </div>
+
+  <h2 class="dash-section-title">🚚 Courier Partner Performance</h2>
+  <div class="dash-courier-grid">
+    {% for c in top_couriers %}
+    <div class="courier-card">
+      <div class="courier-rank">#{{ loop.index }}</div>
+      <div class="courier-name">{{ c.courier_partner }}</div>
+      <div class="courier-stats">
+        <div><span class="cs-val">{{ "{:,}".format(c.total_orders) }}</span><span class="cs-label">orders</span></div>
+        <div><span class="cs-val">{{ c.avg_delivery_days }}</span><span class="cs-label">avg days</span></div>
+        <div><span class="cs-val">R$ {{ "{:,.0f}".format(c.total_revenue) }}</span><span class="cs-label">revenue</span></div>
+      </div>
+    </div>
+    {% else %}
+    <p class="dash-empty">No courier data available.</p>
+    {% endfor %}
+  </div>
+
+  <div class="dash-chart-grid dash-chart-grid-2col">
+    <div class="dash-chart-card">
+      <h2>Top 10 Cities by Orders</h2>
+      <canvas id="citiesChart"></canvas>
+    </div>
+    <div class="dash-chart-card dash-table-card">
+      <h2>Top Sellers by Revenue</h2>
+      <div class="dash-table-wrap">
+        <table class="dash-table">
+          <thead>
+            <tr><th>Seller Location</th><th>Orders</th><th>Revenue</th><th>Avg Dispatch (hrs)</th></tr>
+          </thead>
+          <tbody>
+            {% for s in top_sellers %}
+            <tr>
+              <td>{{ s.seller_city }}, {{ s.seller_state }}</td>
+              <td>{{ "{:,}".format(s.total_orders) }}</td>
+              <td>R$ {{ "{:,.0f}".format(s.total_revenue) }}</td>
+              <td>{{ s.avg_dispatch_time }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="4" class="dash-empty">No seller data available.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+const topCategories = {{ top_categories | tojson }};
+const topCities      = {{ top_cities | tojson }};
+const palette = ["#1F4235", "#35618C", "#B5502F", "#B8862B", "#6E9C7C"];
+
+function gradientFill(ctx, chartArea, color) {
+  if (!chartArea) return color;
+  const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+  gradient.addColorStop(0, color);
+  gradient.addColorStop(1, color + "33");
+  return gradient;
+}
+
+new Chart(document.getElementById("topCategoriesChart"), {
+  type: "bar",
+  data: {
+    labels: topCategories.map(c => c.product_category_name_english),
+    datasets: [{
+      label: "Revenue (R$)",
+      data: topCategories.map(c => c.total_revenue),
+      backgroundColor: (context) => {
+        const { chart } = context;
+        return gradientFill(chart.ctx, chart.chartArea, palette[context.dataIndex % palette.length]);
+      },
+      borderRadius: 10, borderSkipped: false, maxBarThickness: 56,
+    }],
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false }, tooltip: { backgroundColor: "#1C1B17", padding: 12, cornerRadius: 8 } },
+    scales: {
+      y: { beginAtZero: true, grid: { color: "#EDEAE0" }, ticks: { color: "#8B8880" } },
+      x: { grid: { display: false }, ticks: { color: "#8B8880" } },
+    },
+  },
+});
+
+new Chart(document.getElementById("shareChart"), {
+  type: "doughnut",
+  data: {
+    labels: topCategories.map(c => c.product_category_name_english),
+    datasets: [{
+      data: topCategories.map(c => c.total_revenue),
+      backgroundColor: palette, borderWidth: 3, borderColor: "#ffffff", hoverOffset: 10,
+    }],
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false, cutout: "62%",
+    plugins: { legend: { position: "bottom", labels: { boxWidth: 10, padding: 12, font: { size: 11 } } } },
+  },
+});
+
+new Chart(document.getElementById("citiesChart"), {
+  type: "bar",
+  data: {
+    labels: topCities.map(c => c.customer_city),
+    datasets: [{
+      label: "Orders",
+      data: topCities.map(c => c.total_orders),
+      backgroundColor: (context) => {
+        const { chart } = context;
+        return gradientFill(chart.ctx, chart.chartArea, "#35618C");
+      },
+      borderRadius: 8, borderSkipped: false, maxBarThickness: 28,
+    }],
+  },
+  options: {
+    indexAxis: "y",
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false }, tooltip: { backgroundColor: "#1C1B17", padding: 12, cornerRadius: 8 } },
+    scales: {
+      x: { beginAtZero: true, grid: { color: "#EDEAE0" }, ticks: { color: "#8B8880" } },
+      y: { grid: { display: false }, ticks: { color: "#8B8880", font: { size: 11 } } },
+    },
+  },
+});
+</script>
+{% endblock %}

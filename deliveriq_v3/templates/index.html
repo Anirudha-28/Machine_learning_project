@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+{% block title %}DeliverIQ — Smart Delivery Estimator{% endblock %}
+{% block content %}
+
+<!-- ═══ HERO ═══ -->
+<section class="hero">
+  <div class="hero-content">
+    <div class="hero-badge">🚀 AI-Powered Logistics Intelligence</div>
+    <h1>Deliver Smarter.<br><span class="hero-accent">Know Before You Ship.</span></h1>
+    <p class="hero-sub">Select your product category, choose your state and shipping mode — our CatBoost ML model predicts your delivery window in real time.</p>
+    <div class="hero-cta-row">
+      <a href="#explore" class="btn-primary">Explore Products ↓</a>
+    </div>
+    <div class="hero-stats">
+      <div class="hero-stat"><span class="hs-val">200K+</span><span class="hs-label">Orders Analysed</span></div>
+      <div class="hero-stat"><span class="hs-val">71</span><span class="hs-label">Product Categories</span></div>
+      <div class="hero-stat"><span class="hs-val">27</span><span class="hs-label">Brazilian States</span></div>
+      <div class="hero-stat"><span class="hs-val">&lt;1s</span><span class="hs-label">Prediction Time</span></div>
+    </div>
+  </div>
+  <div class="hero-visual">
+    <div class="delivery-card-anim">
+      <div class="dca-icon">🚚</div>
+      <div class="dca-text">
+        <div class="dca-title">Express Delivery</div>
+        <div class="dca-sub">São Paulo → Rio de Janeiro</div>
+        <div class="dca-days">3–5 days</div>
+      </div>
+    </div>
+    <div class="delivery-card-anim dca-2">
+      <div class="dca-icon">📦</div>
+      <div class="dca-text">
+        <div class="dca-title">Standard Shipping</div>
+        <div class="dca-sub">São Paulo → Bahia</div>
+        <div class="dca-days">7–10 days</div>
+      </div>
+    </div>
+    <div class="floating-badge fb-1">📍 27 States</div>
+    <div class="floating-badge fb-2">🤖 ML Powered</div>
+  </div>
+</section>
+
+<!-- ═══ HOW IT WORKS ═══ -->
+<section class="how-section">
+  <h2 class="section-title">How It Works</h2>
+  <div class="how-grid">
+    <div class="how-card">
+      <div class="how-num">01</div>
+      <div class="how-icon">🛍️</div>
+      <div class="how-title">Choose Category</div>
+      <div class="how-desc">Browse 71 product categories from electronics to furniture</div>
+    </div>
+    <div class="how-arrow">→</div>
+    <div class="how-card">
+      <div class="how-num">02</div>
+      <div class="how-icon">📍</div>
+      <div class="how-title">Select Location</div>
+      <div class="how-desc">Pick your state and shipping mode preference</div>
+    </div>
+    <div class="how-arrow">→</div>
+    <div class="how-card">
+      <div class="how-num">03</div>
+      <div class="how-icon">🤖</div>
+      <div class="how-title">AI Predicts</div>
+      <div class="how-desc">CatBoost ML model analyses 40 logistics scenarios</div>
+    </div>
+    <div class="how-arrow">→</div>
+    <div class="how-card">
+      <div class="how-num">04</div>
+      <div class="how-icon">✅</div>
+      <div class="how-title">Get Estimate</div>
+      <div class="how-desc">Receive min/mean/max delivery days instantly</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ EXPLORE PRODUCTS ═══ -->
+<section class="explore-section" id="explore">
+  <div class="explore-header">
+    <div>
+      <h2 class="section-title" style="margin-bottom:0.3rem">Explore Products</h2>
+      <p class="section-sub">Click a category to get your delivery estimate</p>
+    </div>
+    <div class="search-box">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="cat-search" placeholder="Search categories..." oninput="filterCards()">
+    </div>
+  </div>
+
+  <!-- Category filter pills -->
+  <div class="filter-pills">
+    <button class="pill active" onclick="setPill(this,'all')">All</button>
+    <button class="pill" onclick="setPill(this,'furniture')">🪑 Furniture</button>
+    <button class="pill" onclick="setPill(this,'electronics')">📱 Electronics</button>
+    <button class="pill" onclick="setPill(this,'fashion')">👗 Fashion</button>
+    <button class="pill" onclick="setPill(this,'garden')">🌿 Garden</button>
+    <button class="pill" onclick="setPill(this,'health')">💊 Health</button>
+    <button class="pill" onclick="setPill(this,'sports')">⚽ Sports</button>
+    <button class="pill" onclick="setPill(this,'toys')">🧸 Toys</button>
+    <button class="pill" onclick="setPill(this,'food')">🍕 Food</button>
+  </div>
+
+  <div class="product-grid" id="product-grid">
+    {% for p in products %}
+    {% set name = p.product_category_name_english.replace('_', ' ').title() %}
+    {% set icons = {
+      'bed_bath_table': '🛁', 'furniture': '🪑', 'computers': '💻',
+      'electronics': '📱', 'sports': '⚽', 'toys': '🧸',
+      'health': '💊', 'garden': '🌿', 'fashion': '👗',
+      'food': '🍕', 'books': '📚', 'music': '🎵',
+      'art': '🎨', 'baby': '🍼', 'pets': '🐾',
+      'watches': '⌚', 'telephony': '📞', 'auto': '🚗',
+      'construction': '🔨', 'housewares': '🏠'
+    } %}
+    {% set icon = '📦' %}
+    {% for key, val in icons.items() %}
+      {% if key in p.product_category_name_english %}{% set icon = val %}{% endif %}
+    {% endfor %}
+    <a class="product-card" href="{{ url_for('product_detail', category_slug=p.product_category_name_english) }}"
+       data-name="{{ p.product_category_name_english.lower() }}">
+      <div class="pc-icon">{{ icon }}</div>
+      <div class="pc-body">
+        <div class="pc-name">{{ name }}</div>
+        <div class="pc-meta">
+          <span>⚖️ {{ (p.product_weight_g / 1000) | round(1) }} kg</span>
+          <span>📍 {{ p.seller_city }}, {{ p.seller_state }}</span>
+        </div>
+        <div class="pc-price">R$ {{ p.payment_value | round(2) }}</div>
+      </div>
+      <div class="pc-cta">Check delivery →</div>
+    </a>
+    {% endfor %}
+  </div>
+
+  <div id="no-results" class="no-results hidden">
+    <div style="font-size:3rem">🔍</div>
+    <div>No categories found. Try a different search.</div>
+  </div>
+</section>
+
+<script>
+let activePill = 'all';
+function filterCards() {
+  const q = document.getElementById('cat-search').value.toLowerCase();
+  const cards = document.querySelectorAll('.product-card');
+  let visible = 0;
+  cards.forEach(c => {
+    const name = c.dataset.name || '';
+    const matchSearch = name.includes(q);
+    const matchPill = activePill === 'all' || name.includes(activePill);
+    const show = matchSearch && matchPill;
+    c.style.display = show ? '' : 'none';
+    if (show) visible++;
+  });
+  document.getElementById('no-results').classList.toggle('hidden', visible > 0);
+}
+function setPill(el, val) {
+  document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  activePill = val;
+  filterCards();
+}
+</script>
+{% endblock %}

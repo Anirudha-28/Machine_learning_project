@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}DeliverIQ — Delivery Estimator{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+  <header class="topbar">
+    <a href="{{ url_for('home') }}" class="brand">
+      <span class="brand-icon">📦</span>
+      DeliverIQ
+    </a>
+    <nav>
+      <a href="{{ url_for('home') }}" class="nav-link">Home</a>
+      <a href="{{ url_for('home') }}#explore" class="nav-link">Products</a>
+      {% if session.get('role') == 'admin' %}
+        <a href="{{ url_for('admin_dashboard') }}" class="nav-link nav-link-admin">📊 Dashboard</a>
+        <a href="{{ url_for('admin_chatbot') }}" class="nav-link nav-link-admin">🛡️ Admin AI</a>
+      {% else %}
+        <a href="{{ url_for('chatbot') }}" class="nav-link nav-link-ai">🤖 AI Assistant</a>
+      {% endif %}
+      <a href="{{ url_for('logout') }}" class="nav-link nav-link-logout">Logout</a>
+    </nav>
+  </header>
+
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+      <span class="brand">📦 DeliverIQ</span>
+      <span class="footer-copy">© 2025 DeliverIQ · AI-Powered Delivery Prediction</span>
+    </div>
+  </footer>
+
+  <div id="chat-widget" class="chat-widget">
+    <button id="chat-toggle" class="chat-toggle" aria-label="Open assistant">💬</button>
+    <div id="chat-panel" class="chat-panel hidden">
+      <div class="chat-header">
+        <span>🤖 Delivery Assistant</span>
+        <button id="chat-close" class="chat-close">✕</button>
+      </div>
+      <div id="chat-messages" class="chat-messages"></div>
+      <form id="chat-form" class="chat-form">
+        <input id="chat-input" type="text" placeholder="Ask about your delivery..." autocomplete="off">
+        <button type="submit">➤</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

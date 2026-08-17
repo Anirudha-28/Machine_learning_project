@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Chatbot — DeliverIQ{% endblock %}
+{% block content %}
+<section class="chatbot-page">
+  <h1>Delivery Assistant</h1>
+  <p class="chatbot-sub">Ask questions about your delivery, order status, or shipping estimates.</p>
+
+  <div class="chatbot-window">
+    <div id="chatbot-messages" class="chatbot-messages"></div>
+    <form id="chatbot-form" class="chatbot-form">
+      <input id="chatbot-input" type="text" placeholder="Ask about your delivery..." autocomplete="off">
+      <button type="submit">Send</button>
+    </form>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const form = document.getElementById("chatbot-form");
+  const input = document.getElementById("chatbot-input");
+  const messages = document.getElementById("chatbot-messages");
+  const history = [];  // {role, content} pairs so follow-ups keep context
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const text = input.value.trim();
+    if (!text) return;
+    appendMessage("you", text);
+    input.value = "";
+
+    const typingEl = appendTyping();
+
+    try {
+      // Hits the same /chat endpoint as the floating widget in app.py.
+      const res = await fetch("/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: text, history }),
+      });
+      const data = await res.json();
+      typingEl.remove();
+      appendMessage("bot", data.reply);
+      history.push({ role: "user", content: text });
+      history.push({ role: "assistant", content: data.reply });
+    } catch (err) {
+      typingEl.remove();
+      appendMessage("bot", "Sorry, something went wrong.");
+    }
+  });
+
+  function appendMessage(who, text) {
+    const div = document.createElement("div");
+    div.className = "chatbot-msg " + (who === "you" ? "chatbot-msg-you" : "chatbot-msg-bot");
+    div.textContent = text;
+    messages.appendChild(div);
+    messages.scrollTop = messages.scrollHeight;
+  }
+
+  function appendTyping() {
+    const div = document.createElement("div");
+    div.className = "chatbot-msg chatbot-msg-bot chatbot-typing";
+    div.innerHTML = "<span></span><span></span><span></span>";
+    messages.appendChild(div);
+    messages.scrollTop = messages.scrollHeight;
+    return div;
+  }
+});
+</script>
+{% endblock %}
