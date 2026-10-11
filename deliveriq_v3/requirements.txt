@@ -4,3 +4,4 @@ numpy
 catboost
 mysql-connector-python
 requests
+gunicorn
